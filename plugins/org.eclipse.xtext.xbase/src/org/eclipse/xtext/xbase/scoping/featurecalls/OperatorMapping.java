@@ -64,6 +64,7 @@ import com.google.inject.Singleton;
  *   <tr><td>&gt;..</td><td>operator_greaterThanDoubleDot</td></tr>
  *   <tr><td>!</td><td>operator_not</td></tr>
  *   <tr><td>=&gt;</td><td>operator_doubleArrow</td></tr>
+ *   <tr><td>[]</td><td>operator_bracket</td></tr>
  * </table>
  * 
  * Clients may want to override {@link #initializeMapping()} to add other operators.
@@ -112,6 +113,7 @@ public class OperatorMapping {
 	public static final QualifiedName GREATER_THAN_DOUBLE_DOT = create(">..");
 	public static final QualifiedName NOT = create("!");
 	public static final QualifiedName DOUBLE_ARROW = create("=>");
+	public static final QualifiedName BRACKET = create("[]");
 	
 	protected BiMap<QualifiedName, QualifiedName> map = HashBiMap.create();
 	
@@ -163,6 +165,7 @@ public class OperatorMapping {
 		map.put(GREATER_THAN_DOUBLE_DOT, create(OP_PREFIX+"greaterThanDoubleDot"));
 		map.put(NOT, create(OP_PREFIX+"not"));
 		map.put(DOUBLE_ARROW, create(OP_PREFIX+"doubleArrow"));
+		map.put(BRACKET, create(OP_PREFIX+"bracket"));
 		
 		compoundOperatorMapping.put(ADD, PLUS);
 		compoundOperatorMapping.put(REMOVE, MINUS);

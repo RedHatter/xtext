@@ -65,6 +65,7 @@ public abstract class AbstractTypeComputationState implements ITypeComputationSt
 	private IFeatureScopeSession featureScopeSession;
 	private final DefaultReentrantTypeResolver reentrantTypeResolver;
 	private List<AbstractTypeExpectation> expectations;
+	private final ExpressionTransformer transformer;
 	
 	// is this field actually used?
 	private List<AbstractTypeExpectation> returnExpectations;
@@ -74,6 +75,7 @@ public abstract class AbstractTypeComputationState implements ITypeComputationSt
 		this.resolvedTypes = resolvedTypes;
 		this.featureScopeSession = featureScopeSession;
 		this.reentrantTypeResolver = resolvedTypes.getResolver();
+		this.transformer = new ExpressionTransformer ();
 	}
 	
 	public ResolvedTypes getResolvedTypes() {
@@ -119,6 +121,11 @@ public abstract class AbstractTypeComputationState implements ITypeComputationSt
 		ExpressionTypeComputationState state = createExpressionComputationState(expression, stackedResolvedTypes);
 		stackedResolvedTypes.addExpressionScope(expression, state.getFeatureScopeSession(), IExpressionScope.Anchor.BEFORE);
 		getResolver().getTypeComputer().computeTypes(expression, state);
+
+		ExpressionAwareStackedResolvedTypes transformedTypes = transformer.transformExpression (expression, state);
+		if (transformedTypes != null)
+			stackedResolvedTypes = transformedTypes;
+
 		stackedResolvedTypes.prepareMergeIntoParent();
 		if (stackedResolvedTypes.doGetTypeData(expression) == null) {
 			state.acceptActualType(stackedResolvedTypes.getReferenceOwner().newAnyTypeReference());
@@ -381,6 +388,46 @@ public abstract class AbstractTypeComputationState implements ITypeComputationSt
 	}
 
 	@Override
+	public List<IFeatureLinkingCandidate> getLinkingCandidatesByName(QualifiedName name, XAbstractFeatureCall featureCall) {
+		EObject proxyOrResolved = (EObject) featureCall.eGet(XbasePackage.Literals.XABSTRACT_FEATURE_CALL__FEATURE, false);
+		StackedResolvedTypes demandComputedTypes = resolvedTypes.pushTypes();
+		final AbstractTypeComputationState forked = withNonVoidExpectation(demandComputedTypes);
+		ForwardingResolvedTypes demandResolvedTypes = new ForwardingResolvedTypes() {
+			@Override
+			protected IResolvedTypes delegate() {
+				return forked.getResolvedTypes();
+			}
+			
+			@Override
+			/* @Nullable */
+			public LightweightTypeReference getActualType(XExpression expression) {
+				LightweightTypeReference type = super.getActualType(expression);
+				if (type == null) {
+					ITypeComputationResult result = forked.computeTypes(expression);
+					return result.getActualExpressionType();
+				}
+				return type;
+			}
+		};
+		XExpression receiver = new FeatureLinkHelper().getSyntacticReceiver(featureCall);
+		if (receiver != null)
+			demandResolvedTypes.getActualType(receiver);
+		
+		Iterable<IEObjectDescription> descriptions = featureScopeSession.getScope (featureCall,
+			XbasePackage.Literals.XABSTRACT_FEATURE_CALL__FEATURE, demandResolvedTypes)
+				.getElements(name);
+
+		List<IFeatureLinkingCandidate> resultList = Lists.newArrayList();
+		for(IEObjectDescription description: descriptions) {
+			resultList.add(createCandidate(featureCall, demandComputedTypes, toIdentifiableDescription(description)));
+		}
+		if (resultList.isEmpty()) {
+			resultList.add(new NullFeatureLinkingCandidate(featureCall, this));
+		}
+		return resultList;
+	}
+
+	@Override
 	public List<IFeatureLinkingCandidate> getLinkingCandidates(XAbstractFeatureCall featureCall) {
 		IFeatureLinkingCandidate result = reentrantTypeResolver.getScopeProviderAccess().getKnownFeature(featureCall, this, resolvedTypes);
 		if (result != null) {
@@ -406,6 +453,10 @@ public abstract class AbstractTypeComputationState implements ITypeComputationSt
 				return type;
 			}
 		};
+		XExpression receiver = new FeatureLinkHelper().getSyntacticReceiver(featureCall);
+		if (receiver != null)
+			demandResolvedTypes.getActualType(receiver);
+
 		Iterable<IEObjectDescription> descriptions = reentrantTypeResolver.getScopeProviderAccess().getCandidateDescriptions(
 				featureCall, XbasePackage.Literals.XABSTRACT_FEATURE_CALL__FEATURE, proxyOrResolved, featureScopeSession, demandResolvedTypes);
 		List<IFeatureLinkingCandidate> resultList = Lists.newArrayList();

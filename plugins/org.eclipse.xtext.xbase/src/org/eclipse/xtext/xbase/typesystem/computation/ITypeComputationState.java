@@ -286,6 +286,9 @@ public interface ITypeComputationState {
 	 */
 	List<? extends IFeatureLinkingCandidate> getLinkingCandidates(XAbstractFeatureCall featureCall);
 	
+
+	List<? extends IFeatureLinkingCandidate> getLinkingCandidatesByName(QualifiedName name, XAbstractFeatureCall featureCall);
+	
 	/**
 	 * Annotates the currently considered expression(s) with the given type.
 	 * It is assumed that the type does not depend on the expectation.

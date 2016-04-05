@@ -61,6 +61,15 @@ public class CompoundTypeComputationState implements ITypeComputationState {
 	}
 
 	@Override
+	public List<? extends IFeatureLinkingCandidate> getLinkingCandidatesByName(QualifiedName name, XAbstractFeatureCall featureCall) {
+		List<IFeatureLinkingCandidate> result = Lists.newArrayList();
+		for (ITypeComputationState component : components) {
+			result.addAll(component.getLinkingCandidatesByName(name, featureCall));
+		}
+		return result;
+	}
+
+	@Override
 	public List<? extends IFeatureLinkingCandidate> getLinkingCandidates(XAbstractFeatureCall featureCall) {
 		List<IFeatureLinkingCandidate> result = Lists.newArrayList();
 		for (ITypeComputationState component : components) {
